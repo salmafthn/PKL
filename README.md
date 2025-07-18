@@ -6,6 +6,7 @@ Install **Docker Dekstop** terlebih dahulu lalu pastikan sudah berjalan di kompu
 
 Langkah langkah menggunakan aplikasi ini:
 1.  **Ekstrak Folder Proyek**: Ekstrak file ZIP proyek ini ke sebuah folder di komputer Anda.
+<<<<<<< HEAD
 
 2.  **Buka terminal lalu Masuk ke Folder Proyek**: Gunakan perintah `cd` (change directory) untuk masuk ke folder yang baru saja Anda ekstrak. Contoh:
     ```
@@ -13,20 +14,36 @@ Langkah langkah menggunakan aplikasi ini:
     ```
 
 3.  **Jalankan Docker Compose**: Ketik perintah di bawah ini lalu tekan Enter. Perintah ini akan secara otomatis mengunduh, membangun, dan menjalankan semua komponen.
+=======
+2.  **Buka terminal lalu Masuk ke Folder Proyek**: Gunakan perintah `cd` (change directory) untuk masuk ke folder yang baru saja Anda ekstrak. Contoh:
+    ```bash
+    cd C:\Users\NamaAnda\Downloads\proyek-streamlit-sql
+    ```
+4.  **Jalankan Docker Compose**: Ketik perintah di bawah ini lalu tekan Enter. Perintah ini akan secara otomatis mengunduh, membangun, dan menjalankan semua komponen.
+>>>>>>> 9fbc954d270e42bc3f77c1a25ef0e7ee08f8cac7
     **Proses ini akan memakan waktu cukup lama saat pertama kali dijalankan.**
     ```
     docker-compose up --build
     ```
     Lalu biarkan terminal ini tetap terbuka.
+<<<<<<< HEAD
 
 4.  **Unduh Model AI (Hanya Sekali)**: Setelah log di terminal pertama sudah jalan, buka **terminal kedua** (jangan tutup terminal yang pertama). Ketik command di bawah ini untuk mengunduh model AI `mistral`.
+=======
+5.  **Unduh Model AI (Hanya Sekali)**: Setelah log di terminal pertama sudah jalan, buka **terminal kedua** (jangan tutup terminal yang pertama). Ketik command di bawah ini untuk mengunduh model AI `mistral`.
+>>>>>>> 9fbc954d270e42bc3f77c1a25ef0e7ee08f8cac7
     **Anda hanya perlu melakukan ini satu kali saja.**
     ```
     docker exec -it ollama_service ollama run mistral
     ```
+<<<<<<< HEAD
     
     Tunggu hingga proses unduh dan verifikasi selesai di terminal kedua ini. Setelah selesai, Anda bisa menutup terminal kedua.
 5.  **Buka Aplikasi**: Buka browser web Anda (seperti Chrome atau Firefox) dan kunjungi alamat berikut:
+=======
+    Tunggu hingga proses unduh dan verifikasi selesai di terminal kedua ini. Setelah selesai, Anda bisa menutup terminal kedua.
+6.  **Buka Aplikasi**: Buka browser web Anda (seperti Chrome atau Firefox) dan kunjungi alamat berikut:
+>>>>>>> 9fbc954d270e42bc3f77c1a25ef0e7ee08f8cac7
     [**http://localhost:8501**](http://localhost:8501)
 
 Aplikasi Anda kini siap digunakan!
