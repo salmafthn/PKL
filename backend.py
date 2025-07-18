@@ -5,42 +5,69 @@ import streamlit as st
 import requests
 import json
 import pandas as pd
-import re
-import extract_mysql 
 import os
+import extract_mysql  # Pastikan file ini ada dan sudah versi terbaru
 
 # ==== FUNGSI UTAMA ====
 
+def format_schema_with_values(schema_info):
+    """
+    Memformat skema dan contoh data menjadi string yang mudah dibaca oleh AI.
+    """
+    schema_str = ""
+    values_str = ""
+    
+    # Format Skema
+    for table, details in schema_info.items():
+        columns = {k: v for k, v in details.items() if k != "_values"}
+        schema_str += f"Table `{table}`:\n"
+        schema_str += json.dumps(columns, indent=2) + "\n\n"
+        
+        # Format Contoh Data (Contekan)
+        if "_values" in details:
+            for col_name, val_list in details["_values"].items():
+                if val_list: # Hanya tambahkan jika ada isinya
+                    values_str += f"- `{table}.{col_name}`: {json.dumps(val_list)}\n"
+    
+    return schema_str, values_str
+
 def text_to_sql(prompt):
     """
-    Mengirimkan prompt ke model AI untuk diubah menjadi query SQL.
+    Mengirimkan prompt ke model AI dengan konteks skema DAN contoh data.
     """
-    # PENTING: Cek apakah skema berhasil dimuat sebelum mengirim ke Ollama
     if not extract_mysql.tabel_info:
         return "❌ ERROR: Tidak dapat mengambil skema database. Pastikan database berjalan dan dapat diakses."
 
-    relevant_tables = detect_relevant_tables(prompt, extract_mysql.tabel_info)
-    schema_string = json.dumps(relevant_tables, indent=2)
+    # Dapatkan skema dan contekan dalam format string
+    schema_string, values_string = format_schema_with_values(extract_mysql.tabel_info)
 
     url = "http://ollama:11434/api/generate"
     
+    # --- PROMPT BARU YANG LEBIH CERDAS ---
+    full_prompt = f"""You are an expert SQL assistant who only returns valid MySQL queries.
+Given the database schema below:
+
+{schema_string}
+For string comparisons, you MUST use one of the following exact values if the user's query is similar. This is very important for correctness.
+Here are some example values for key columns:
+{values_string}
+
+Convert the following question into a valid, syntactically correct MySQL query.
+
+IMPORTANT: 
+- Your response must ONLY contain the SQL code.
+- Do not provide any explanation or any text other than the SQL code itself.
+- Do not use quotes around column names, but always use single quotes for string values (e.g., WHERE dept_name = 'Comp. Sci.').
+
+Question:
+{prompt}
+
+SQL:
+"""
+    
     data = {
         "model": "mistral",
-        "prompt": f"""
-        You are an expert SQL assistant who only returns valid MySQL queries.
-        Given the database schema below:
-
-        {schema_string}
-
-        Convert the following question into a valid, syntactically correct MySQL query.
-
-        IMPORTANT: Do not provide any explanation or any text other than the SQL code itself. Your response must ONLY contain the SQL code. Do not use quotes around column names.
-
-        Question:
-        {prompt}
-
-        SQL:
-        """,
+        "prompt": full_prompt,
         "stream": False,
         "temperature": 0.0
     }
@@ -49,54 +76,28 @@ def text_to_sql(prompt):
         response = requests.post(url, json=data)
         response.raise_for_status()
         result = response.json()
-        
         sql_query = result.get("response", "").strip()
         
-        # Membersihkan output dari markdown code block
-        if sql_query.startswith("```sql"):
-            sql_query = sql_query[6:]
-        if sql_query.endswith("```"):
-            sql_query = sql_query[:-3]
+        # Membersihkan output dari markdown
+        if "```sql" in sql_query:
+            sql_query = sql_query.split("```sql")[1].split("```")[0].strip()
         
-        sql_query = sql_query.split('\n\n')[0]
-        if sql_query.endswith(';'):
-            sql_query = sql_query[:-1]
-            
-        return sql_query.strip()
+        return sql_query
+        
     except requests.exceptions.RequestException as e:
         return f"❌ Error: Tidak dapat terhubung ke Ollama. Pastikan layanan 'ollama' berjalan. Detail: {e}"
     except Exception as e:
         return f"❌ Error: Terjadi kesalahan saat memproses permintaan AI. Detail: {str(e)}"
 
-def detect_relevant_tables(prompt, tabel_info):
-    """Mendeteksi tabel yang relevan dari prompt pengguna."""
-    relevant = {}
-    prompt_lower = prompt.lower()
-    for table, columns in tabel_info.items():
-        if table.lower().replace("_", " ") in prompt_lower:
-            relevant[table] = columns
-    
-    # Jika tidak ada tabel yang terdeteksi, kirim semua skema sebagai fallback
-    if not relevant:
-        return tabel_info
-    return relevant
-
 def execute_query(sql_query):
-    """
-    Mengeksekusi query SQL pada database dan mengembalikan hasilnya sebagai DataFrame.
-    """
+    # (Fungsi ini tidak perlu diubah, sudah benar)
     try:
         db_host = os.getenv("DB_HOST", "localhost")
         db_user = os.getenv("DB_USER", "root")
         db_password = os.getenv("DB_PASSWORD", "mysecretpassword")
         db_name = os.getenv("DB_NAME", "university")
 
-        connection = pymysql.connect(host=db_host,
-                                     user=db_user,
-                                     password=db_password,
-                                     database=db_name,
-                                     cursorclass=pymysql.cursors.DictCursor)
-        
+        connection = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_name, cursorclass=pymysql.cursors.DictCursor)
         with connection.cursor() as cursor:
             cursor.execute(sql_query)
             result = cursor.fetchall()
@@ -107,22 +108,16 @@ def execute_query(sql_query):
         return None, str(e)
 
 # ==== TAMPILAN STREAMLIT ====
-
+# (Bagian UI ini tidak perlu diubah, sudah benar)
 st.set_page_config(page_title="Text to SQL with Mistral", page_icon="🤖", layout="wide")
 
-# --- SIDEBAR SKEMA DATABASE ---
 st.sidebar.title("Database Schema")
 if not extract_mysql.tabel_info:
     st.sidebar.error("Skema database gagal dimuat. Cek log terminal untuk detail.")
 else:
-    try:
-        for table, columns in extract_mysql.tabel_info.items():
-            st.sidebar.markdown(f"### {table}")
-            st.sidebar.code(", ".join(columns.keys()), language="text")
-    except Exception as e:
-        st.sidebar.error(f"Gagal menampilkan skema: {e}")
+    schema_string, _ = format_schema_with_values(extract_mysql.tabel_info)
+    st.sidebar.code(schema_string, language="json")
 
-# --- HALAMAN UTAMA APLIKASI ---
 st.title("💬 Text to SQL Generator + Executor")
 st.markdown("Ketik pertanyaan dalam bahasa alami (hanya bahasa Inggris), lihat SQL yang dihasilkan, dan jalankan secara langsung.")
 
@@ -140,7 +135,6 @@ if st.button("🔍 Konversi ke SQL"):
         st.session_state.generated_sql = sql_result
         
 if st.session_state.generated_sql:
-    # Cek apakah hasilnya adalah pesan error
     if st.session_state.generated_sql.strip().startswith("❌"):
         st.error(st.session_state.generated_sql)
     else:
@@ -153,3 +147,4 @@ if st.session_state.generated_sql:
             else:
                 st.success("✅ Query berhasil dieksekusi!")
                 st.dataframe(df)
+
