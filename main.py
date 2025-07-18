@@ -1,15 +1,12 @@
-# backend.py
-
 import pymysql.cursors
 import streamlit as st
 import requests
 import json
 import pandas as pd
 import os
-import extract_mysql  # Pastikan file ini ada dan sudah versi terbaru
+import extract_mysql  
 
-# ==== FUNGSI UTAMA ====
-
+#FUNGSI UTAMA 
 def format_schema_with_values(schema_info):
     """
     Memformat skema dan contoh data menjadi string yang mudah dibaca oleh AI.
@@ -32,18 +29,14 @@ def format_schema_with_values(schema_info):
     return schema_str, values_str
 
 def text_to_sql(prompt):
-    """
-    Mengirimkan prompt ke model AI dengan konteks skema DAN contoh data.
-    """
-    if not extract_mysql.tabel_info:
-        return "❌ ERROR: Tidak dapat mengambil skema database. Pastikan database berjalan dan dapat diakses."
 
-    # Dapatkan skema dan contekan dalam format string
+    if not extract_mysql.tabel_info:
+        return "ERROR: Tidak dapat mengambil skema database. Pastikan database berjalan dan dapat diakses."
+    
     schema_string, values_string = format_schema_with_values(extract_mysql.tabel_info)
 
     url = "http://ollama:11434/api/generate"
     
-    # --- PROMPT BARU YANG LEBIH CERDAS ---
     full_prompt = f"""You are an expert SQL assistant who only returns valid MySQL queries.
 Given the database schema below:
 
@@ -78,7 +71,6 @@ SQL:
         result = response.json()
         sql_query = result.get("response", "").strip()
         
-        # Membersihkan output dari markdown
         if "```sql" in sql_query:
             sql_query = sql_query.split("```sql")[1].split("```")[0].strip()
         
@@ -90,7 +82,6 @@ SQL:
         return f"❌ Error: Terjadi kesalahan saat memproses permintaan AI. Detail: {str(e)}"
 
 def execute_query(sql_query):
-    # (Fungsi ini tidak perlu diubah, sudah benar)
     try:
         db_host = os.getenv("DB_HOST", "localhost")
         db_user = os.getenv("DB_USER", "root")
@@ -107,8 +98,7 @@ def execute_query(sql_query):
     except Exception as e:
         return None, str(e)
 
-# ==== TAMPILAN STREAMLIT ====
-# (Bagian UI ini tidak perlu diubah, sudah benar)
+# UI Streamlit
 st.set_page_config(page_title="Text to SQL with Mistral", page_icon="🤖", layout="wide")
 
 st.sidebar.title("Database Schema")
@@ -119,7 +109,7 @@ else:
     st.sidebar.code(schema_string, language="json")
 
 st.title("💬 Text to SQL Generator + Executor")
-st.markdown("Ketik pertanyaan dalam bahasa alami (hanya bahasa Inggris), lihat SQL yang dihasilkan, dan jalankan secara langsung.")
+st.markdown("Ketik pertanyaan dalam bahasa alami (gunakan bahasa Inggris saja), lihat SQL yang dihasilkan, dan jalankan secara langsung.")
 
 question = st.text_area("Pertanyaan Anda:", height=150)
 

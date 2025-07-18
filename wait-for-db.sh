@@ -7,10 +7,7 @@ host="$1"
 shift
 cmd="$@"
 
-# Loop sampai kita bisa menjalankan query dan menemukan tabel 'prereq'
-# Ini memastikan DDL dan DML sudah selesai dijalankan.
-for i in {1..24}; do # Kita beri waktu lebih lama (24 * 5s = 2 menit)
-  # -Ns me-nonaktifkan header kolom dan output tabular, -e mengeksekusi query
+for i in {1..24}; do 
   result=$(mysql -h"$host" -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -Nse "SHOW TABLES LIKE 'prereq';" 2>/dev/null)
   
   if [ "$result" == "prereq" ]; then

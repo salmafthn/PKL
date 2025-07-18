@@ -1,9 +1,7 @@
-# extract_mysql.py
-
 from sqlalchemy import create_engine, inspect, text
 import os
 
-# --- PENGATURAN KONEKSI DATABASE ---
+# konfigurasi koneksi DB
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "mysecretpassword")
@@ -11,9 +9,6 @@ DB_NAME = os.getenv("DB_NAME", "university")
 
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:3306/{DB_NAME}"
 
-# --- KOLOM PENTING UNTUK DIAMBIL CONTOH DATANYA ---
-# Kita definisikan kolom mana yang valuenya ingin kita berikan ke AI.
-# Formatnya: 'nama_tabel': ['nama_kolom1', 'nama_kolom2']
 CONTEKAN_KOLOM = {
     'department': ['dept_name', 'building'],
     'course': ['title'],
@@ -41,14 +36,11 @@ def get_schema_and_values():
 
             for table_name in tables:
                 columns = inspector.get_columns(table_name)
-                # Menyimpan informasi kolom seperti sebelumnya
                 tabel_info[table_name] = {col["name"]: str(col["type"]) for col in columns}
                 
-                # Menambahkan 'contekan' jika tabel ada di daftar CONTEKAN_KOLOM
                 if table_name in CONTEKAN_KOLOM:
                     tabel_info[table_name]["_values"] = {}
                     for col_name in CONTEKAN_KOLOM[table_name]:
-                        # Query untuk mengambil 10 nilai unik
                         query = text(f"SELECT DISTINCT `{col_name}` FROM `{table_name}` LIMIT 10;")
                         result = connection.execute(query)
                         values = [row[0] for row in result]
@@ -61,5 +53,5 @@ def get_schema_and_values():
         print(f"❌ CRITICAL: GAGAL MENGAMBIL SKEMA. Error: {e}")
         return {}
 
-# Eksekusi fungsi saat modul diimpor
 tabel_info = get_schema_and_values()
+
