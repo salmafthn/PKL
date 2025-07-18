@@ -1,8 +1,25 @@
-use University;
+-- DDL_score.sql (Versi Final dengan DROP TABLE)
 
+-- Menggunakan database yang sudah dibuat oleh Docker Compose
+USE university;
+
+-- Hapus tabel dalam urutan terbalik untuk menghindari error foreign key
+DROP TABLE IF EXISTS prereq;
+DROP TABLE IF EXISTS advisor;
+DROP TABLE IF EXISTS takes;
+DROP TABLE IF EXISTS teaches;
+DROP TABLE IF EXISTS section;
+DROP TABLE IF EXISTS student;
+DROP TABLE IF EXISTS instructor;
+DROP TABLE IF EXISTS course;
+DROP TABLE IF EXISTS department;
+DROP TABLE IF EXISTS classroom;
+DROP TABLE IF EXISTS time_slot;
+
+-- Buat kembali tabel dalam urutan yang benar
 create table classroom
 	(building		varchar(15),
-	 room_number		varchar(7),
+	 room_number	varchar(7),
 	 capacity		numeric(4,0),
 	 primary key (building, room_number)
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -10,7 +27,7 @@ create table classroom
 create table department
 	(dept_name		varchar(20), 
 	 building		varchar(15), 
-	 budget		        numeric(12,2) check (budget > 0),
+	 budget		    numeric(12,2) check (budget > 0),
 	 primary key (dept_name)
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -25,7 +42,7 @@ create table course
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table instructor
-	(ID			varchar(5), 
+	(ID			    varchar(5), 
 	 name			varchar(20) not null, 
 	 dept_name		varchar(20), 
 	 salary			numeric(8,2) check (salary > 29000),
@@ -35,7 +52,7 @@ create table instructor
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table time_slot
-	(time_slot_id		varchar(4),
+	(time_slot_id	varchar(4),
 	 day			varchar(1),
 	 start_hr		numeric(2) check (start_hr >= 0 and start_hr < 24),
 	 start_min		numeric(2) check (start_min >= 0 and start_min < 60),
@@ -46,13 +63,13 @@ create table time_slot
 
 create table section
 	(course_id		varchar(8), 
-         sec_id			varchar(8),
+	 sec_id			varchar(8),
 	 semester		varchar(6)
 		check (semester in ('Fall', 'Winter', 'Spring', 'Summer')), 
 	 year			numeric(4,0) check (year > 1701 and year < 2100), 
 	 building		varchar(15),
-	 room_number		varchar(7),
-	 time_slot_id		varchar(4),
+	 room_number	varchar(7),
+	 time_slot_id	varchar(4),
 	 primary key (course_id, sec_id, semester, year),
 	 foreign key (course_id) references course(course_id)
 		on delete cascade,
@@ -61,7 +78,7 @@ create table section
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table teaches
-	(ID			varchar(5), 
+	(ID			    varchar(5), 
 	 course_id		varchar(8),
 	 sec_id			varchar(8), 
 	 semester		varchar(6),
@@ -72,9 +89,9 @@ create table teaches
 	 foreign key (ID) references instructor(ID)
 		on delete cascade
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+    
 create table student
-	(ID			varchar(5), 
+	(ID			    varchar(5), 
 	 name			varchar(20) not null, 
 	 dept_name		varchar(20), 
 	 tot_cred		numeric(3,0) check (tot_cred >= 0),
@@ -84,13 +101,13 @@ create table student
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table takes
-	(ID			varchar(5), 
+	(ID			    varchar(5), 
 	 course_id		varchar(8),
 	 sec_id			varchar(8), 
 	 semester		varchar(6),
 	 year			numeric(4,0),
-         score                  float,
-         grade		        varchar(2),
+     score          float,
+     grade		    varchar(2),
 	 primary key (ID, course_id, sec_id, semester, year),
 	 foreign key (course_id,sec_id, semester, year) references section(course_id, sec_id, semester, year)
 		on delete cascade,
@@ -109,7 +126,7 @@ create table advisor
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 create table prereq
-	(course_id		varchar(8), 
+	(course_id		varchar(8),
 	 prereq_id		varchar(8),
 	 primary key (course_id, prereq_id),
 	 foreign key (course_id) references course(course_id)

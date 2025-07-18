@@ -1,0 +1,59 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  # 1. Layanan Aplikasi Streamlit
+  app:
+    build: .
+    container_name: streamlit_sql_app
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=mysecretpassword
+      - DB_NAME=university
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  # 2. Layanan Database MySQL
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    platform: linux/amd64  # <--- TAMBAHKAN BARIS INI
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mysecretpassword
+      MYSQL_DATABASE: university
+    volumes:
+      - ./DDL_score.sql:/docker-entrypoint-initdb.d/1_ddl.sql
+      - ./DML_largeRelationsInsertFile_score.sql:/docker-entrypoint-initdb.d/2_dml.sql
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pmysecretpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # 3. Layanan AI Model Ollama
+  ollama:
+    image: ollama/ollama
+    container_name: ollama_service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  ollama_data:

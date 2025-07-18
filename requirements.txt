@@ -2,4 +2,5 @@ streamlit
 pymysql
 requests
 pandas
-sqlalchemy
+SQLAlchemy
+cryptography

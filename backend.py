@@ -1,3 +1,5 @@
+# backend.py
+
 import pymysql.cursors
 import streamlit as st
 import requests
@@ -5,20 +7,23 @@ import json
 import pandas as pd
 import re
 import extract_mysql 
+import os
 
 # ==== FUNGSI UTAMA ====
 
 def text_to_sql(prompt):
     """
-    Sends a prompt to the AI model to be converted into a SQL query.
-    The prompt is optimized for English and clean output.
+    Mengirimkan prompt ke model AI untuk diubah menjadi query SQL.
     """
+    # PENTING: Cek apakah skema berhasil dimuat sebelum mengirim ke Ollama
+    if not extract_mysql.tabel_info:
+        return "❌ ERROR: Tidak dapat mengambil skema database. Pastikan database berjalan dan dapat diakses."
+
     relevant_tables = detect_relevant_tables(prompt, extract_mysql.tabel_info)
     schema_string = json.dumps(relevant_tables, indent=2)
 
-    url = "http://localhost:11434/api/generate"
+    url = "http://ollama:11434/api/generate"
     
-    # --- PROMPT DIKEMBALIKAN KE BAHASA INGGRIS ---
     data = {
         "model": "mistral",
         "prompt": f"""
@@ -37,7 +42,7 @@ def text_to_sql(prompt):
         SQL:
         """,
         "stream": False,
-        "temperature": 0.0 # Temperature 0 for deterministic output
+        "temperature": 0.0
     }
 
     try:
@@ -45,92 +50,106 @@ def text_to_sql(prompt):
         response.raise_for_status()
         result = response.json()
         
-        # Output cleaning code
         sql_query = result.get("response", "").strip()
         
+        # Membersihkan output dari markdown code block
         if sql_query.startswith("```sql"):
             sql_query = sql_query[6:]
         if sql_query.endswith("```"):
             sql_query = sql_query[:-3]
-            
+        
         sql_query = sql_query.split('\n\n')[0]
-
         if sql_query.endswith(';'):
             sql_query = sql_query[:-1]
-
+            
         return sql_query.strip()
+    except requests.exceptions.RequestException as e:
+        return f"❌ Error: Tidak dapat terhubung ke Ollama. Pastikan layanan 'ollama' berjalan. Detail: {e}"
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"❌ Error: Terjadi kesalahan saat memproses permintaan AI. Detail: {str(e)}"
 
 def detect_relevant_tables(prompt, tabel_info):
-    """Detects relevant tables from the user's prompt."""
+    """Mendeteksi tabel yang relevan dari prompt pengguna."""
     relevant = {}
     prompt_lower = prompt.lower()
     for table, columns in tabel_info.items():
-        if table.lower() in prompt_lower:
+        if table.lower().replace("_", " ") in prompt_lower:
             relevant[table] = columns
-        else:
-            for col in columns.keys():
-                if col.lower() in prompt_lower:
-                    relevant[table] = columns
-                    break
+    
+    # Jika tidak ada tabel yang terdeteksi, kirim semua skema sebagai fallback
+    if not relevant:
+        return tabel_info
     return relevant
 
-def run_sql(sql):
-    """Executes the SQL query against the University database."""
+def execute_query(sql_query):
+    """
+    Mengeksekusi query SQL pada database dan mengembalikan hasilnya sebagai DataFrame.
+    """
     try:
-        conn = pymysql.connect(
-            host="localhost",
-            user="root",
-            password="2701", # Your MySQL password
-            database="university",
-            cursorclass=pymysql.cursors.DictCursor
-        )
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        results = cursor.fetchall()
-        conn.close()
-        return pd.DataFrame(results)
-    except Exception as e:
-        return f"❌ Query Execution Error: {str(e)}"
+        db_host = os.getenv("DB_HOST", "localhost")
+        db_user = os.getenv("DB_USER", "root")
+        db_password = os.getenv("DB_PASSWORD", "mysecretpassword")
+        db_name = os.getenv("DB_NAME", "university")
 
-# ==== STREAMLIT USER INTERFACE (UI) ====
+        connection = pymysql.connect(host=db_host,
+                                     user=db_user,
+                                     password=db_password,
+                                     database=db_name,
+                                     cursorclass=pymysql.cursors.DictCursor)
+        
+        with connection.cursor() as cursor:
+            cursor.execute(sql_query)
+            result = cursor.fetchall()
+            df = pd.DataFrame(result)
+        connection.close()
+        return df, None
+    except Exception as e:
+        return None, str(e)
+
+# ==== TAMPILAN STREAMLIT ====
 
 st.set_page_config(page_title="Text to SQL with Mistral", page_icon="🤖", layout="wide")
 
-# --- DATABASE SCHEMA SIDEBAR ---
+# --- SIDEBAR SKEMA DATABASE ---
 st.sidebar.title("Database Schema")
-try:
-    for table, columns in extract_mysql.tabel_info.items():
-        st.sidebar.markdown(f"### {table}")
-        st.sidebar.code(", ".join(columns.keys()), language="text")
-except Exception as e:
-    st.sidebar.error(f"Failed to load schema: {e}")
+if not extract_mysql.tabel_info:
+    st.sidebar.error("Skema database gagal dimuat. Cek log terminal untuk detail.")
+else:
+    try:
+        for table, columns in extract_mysql.tabel_info.items():
+            st.sidebar.markdown(f"### {table}")
+            st.sidebar.code(", ".join(columns.keys()), language="text")
+    except Exception as e:
+        st.sidebar.error(f"Gagal menampilkan skema: {e}")
 
-# --- MAIN APPLICATION PAGE ---
+# --- HALAMAN UTAMA APLIKASI ---
 st.title("💬 Text to SQL Generator + Executor")
-st.markdown("Type a question in natural language (english only), see the generated SQL, and run it directly.")
+st.markdown("Ketik pertanyaan dalam bahasa alami (hanya bahasa Inggris), lihat SQL yang dihasilkan, dan jalankan secara langsung.")
 
-question = st.text_area("Your Question:", height=150)
+question = st.text_area("Pertanyaan Anda:", height=150)
 
 if "generated_sql" not in st.session_state:
     st.session_state.generated_sql = ""
 
-if st.button("🔍 Convert to SQL"):
+if st.button("🔍 Konversi ke SQL"):
     if question.strip() == "":
-        st.warning("Please enter a question first.")
+        st.warning("Silakan masukkan pertanyaan terlebih dahulu.")
     else:
-        with st.spinner("Contacting AI model via Ollama..."):
+        with st.spinner("Menghubungi model AI via Ollama..."):
             sql_result = text_to_sql(question)
         st.session_state.generated_sql = sql_result
         
 if st.session_state.generated_sql:
-    st.code(st.session_state.generated_sql, language="sql")
-    if st.button("Execute SQL"):
-        with st.spinner("Executing query..."):
-            result = run_sql(st.session_state.generated_sql)
-            if isinstance(result, pd.DataFrame):
-                st.success("✅ Query executed successfully!")
-                st.dataframe(result)
+    # Cek apakah hasilnya adalah pesan error
+    if st.session_state.generated_sql.strip().startswith("❌"):
+        st.error(st.session_state.generated_sql)
+    else:
+        st.code(st.session_state.generated_sql, language="sql")
+        if st.button("Jalankan SQL"):
+            with st.spinner("Mengeksekusi query..."):
+                df, error = execute_query(st.session_state.generated_sql)
+            if error:
+                st.error(f"❌ Terjadi error saat eksekusi query: {error}")
             else:
-                st.error(result)
+                st.success("✅ Query berhasil dieksekusi!")
+                st.dataframe(df)

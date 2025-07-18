@@ -1,33 +1,31 @@
+# extract_mysql.py (Versi Sederhana Final)
+
 from sqlalchemy import create_engine, inspect
+import os
 
-engine = create_engine("mysql+pymysql://root:2701@localhost:3306/university")
+# Ambil kredensial dari environment variables
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "mysecretpassword")
+DB_NAME = os.getenv("DB_NAME", "university")
 
-inspector = inspect(engine)
-tables = inspector.get_table_names()
+# Buat connection string
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:3306/{DB_NAME}"
 
 tabel_info = {}
+try:
+    print("Mencoba mengambil skema database...")
+    engine = create_engine(DATABASE_URL)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
 
-for table_name in tables:
-    columns = inspector.get_columns(table_name)
-    tabel_info[table_name] = {}
-    for col in columns:
-        tipe = str(col["type"]).split(" ")[0].replace('"utf8mb4_unicode_ci"', "").replace("COLLATE", "").strip()
-        tabel_info[table_name][col["name"]]=tipe
+    if not tables:
+        print("Koneksi berhasil, tetapi tidak ada tabel yang ditemukan di database.")
+    else:
+        for table_name in tables:
+            columns = inspector.get_columns(table_name)
+            tabel_info[table_name] = {col["name"]: str(col["type"]) for col in columns}
+        print(f"✅ Skema berhasil dimuat untuk tabel: {list(tabel_info.keys())}")
 
-# for table_name in tables:
-#     columns = inspector.get_columns(table_name)
-#     info = {
-#         "tabel": table_name,
-#         "kolom": []
-#     }
-
-#     for col in columns:
-#         tipe = str(col["type"]).split(" ")[0].replace('"utf8mb4_unicode_ci"', "").replace("COLLATE", "").strip()
-#         info["kolom"].append({
-#             "nama": col["name"],
-#             "tipe": tipe
-#         })
-#     tabel_info.append(info)
-
-import json
-print(json.dumps(tabel_info, indent=2))
+except Exception as e:
+    print(f"❌ CRITICAL: GAGAL MENGAMBIL SKEMA. Error: {e}")
