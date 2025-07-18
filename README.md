@@ -1,8 +1,6 @@
 # Proyek Text-to-SQL dengan Streamlit, MySQL, dan Ollama
 
-Proyek ini dipaketkan menggunakan Docker dan Docker Compose untuk memastikan dapat berjalan di lingkungan manapun dengan mudah.
-
-Install **Docker Dekstop** terlebih dahulu lalu pastikan sudah berjalan di komputer.
+**Install Docker Dekstop terlebih dahulu lalu pastikan sudah berjalan di komputer.**
 
 Langkah langkah menggunakan aplikasi ini:
 1.  **Ekstrak Folder Proyek**: Ekstrak file ZIP proyek ini ke sebuah folder di komputer Anda.
